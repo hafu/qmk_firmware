@@ -15,3 +15,4 @@
  */
 
 #define TAPPING_TERM 200
+#define RGB_DISABLE_WHEN_USB_SUSPENDED true
