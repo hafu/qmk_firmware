@@ -17,6 +17,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include QMK_KEYBOARD_H
+#include "rgb_matrix_map.h"
+
+#define ARRAYSIZE(arr)  sizeof(arr)/sizeof(arr[0])
 
 // enum for layers - _FN layer is has highest priority
 enum {
@@ -106,7 +109,21 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
 };
 
+#ifdef RGB_MATRIX_ENABLE
+// globals
+uint8_t rgb_matrix_current_mode = 0;
 
+// custom function(s)
+// set color by list of led indexes
+void rgb_matrix_set_color_led_list(const uint8_t* led_array, size_t size, RGB* rgb) {
+    for (uint8_t i=0; i<size; i++) {
+        rgb_matrix_set_color(led_array[i], rgb->r, rgb->g, rgb->b);
+    }
+}
+#endif // RGB_MATRIX_ENABLE
+
+#ifdef ENCODER_ENABLE
+// rotary encoder
 bool encoder_update_user(uint8_t index, bool clockwise) {
     if (clockwise) {
       tap_code(KC_VOLU);
@@ -115,16 +132,32 @@ bool encoder_update_user(uint8_t index, bool clockwise) {
     }
     return true;
 }
+#endif // ENCODER_ENABLE
 
+// turn off leds on suspend
 void suspend_power_down_user(void) {
+#ifdef RGB_MATRIX_ENABLE
     rgb_matrix_set_suspend_state(true);
+#endif // RGB_MATRIX_ENABLE
 }
 
+// turn on leds on wakeup
 void suspend_wakeup_init_user(void) {
+#ifdef RGB_MATRIX_ENABLE
     rgb_matrix_set_suspend_state(false);
+#endif // RGB_MATRIX_ENABLE
 }
 
-// toggle numpad layer on numlock
+// save the current rgb matrix mode after init (from eeprom)
+void keyboard_post_init_user(void) {
+#ifdef RGB_MATRIX_ENABLE
+    rgb_matrix_current_mode = rgb_matrix_get_mode();
+#endif // RGB_MATRIX_ENABLE
+}
+
+// process keycodes, used for:
+//  - toggle num layer on num lock
+//  - save rgb matrix mode on changing effect
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
         // toggle numpad layer
@@ -137,7 +170,96 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 }
             }
             return true;
+#ifdef RGB_MATRIX_ENABLE
+        // save current rgb mode when switching, to restore on layer change
+        case RGB_MOD:
+        case RGB_RMOD:
+            rgb_matrix_current_mode = rgb_matrix_get_mode();
+            return true;
+#endif // RGB_MATRIX_ENABLE
         default:
             return true;
     }
 }
+
+
+// set rgb matrix mode on layer change
+layer_state_t layer_state_set_user(layer_state_t state) {
+#ifdef RGB_MATRIX_ENABLE
+    // go through the layers from up to down, currently only one effect
+    if (IS_LAYER_ON_STATE(state, _GAMING)) {
+        rgb_matrix_mode_noeeprom(RGB_MATRIX_CUSTOM_GAMING_FIXED_COLORS);
+    } else {
+        rgb_matrix_mode_noeeprom(rgb_matrix_current_mode);
+    }
+#endif // RGB_MATRIX_ENABLE
+    return state;
+}
+
+#ifdef RGB_MATRIX_ENABLE
+// toggle numpad leds on
+void numpad_leds_on(void) {
+    HSV hsv1 = { HSV_MAGENTA };
+    hsv1.v = rgb_matrix_config.hsv.v;
+    RGB rgb1 = hsv_to_rgb(hsv1);
+    HSV hsv2 = { HSV_CYAN };
+    hsv2.v = rgb_matrix_config.hsv.v;
+    RGB rgb2 = hsv_to_rgb(hsv2);
+
+    rgb_matrix_set_color_led_list(LED_LIST_NUMPAD, ARRAYSIZE(LED_LIST_NUMPAD), &rgb1);
+    rgb_matrix_set_color_led_list(LED_LIST_NUMPAD_EXTRAS, ARRAYSIZE(LED_LIST_NUMPAD_EXTRAS), &rgb2);
+}
+
+// indicators for
+void rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
+    // num lock enabled
+    uint8_t host_led = host_keyboard_leds();
+    if (IS_LED_ON(host_led, USB_LED_NUM_LOCK)) {
+        numpad_leds_on();
+        // sidebar leds
+        HSV hsv = { HSV_MAGENTA };
+        hsv.v = rgb_matrix_config.hsv.v;
+        RGB rgb = hsv_to_rgb(hsv);
+        rgb_matrix_set_color(LED_L8, rgb.r, rgb.g, rgb.b);
+        rgb_matrix_set_color(LED_R8, rgb.r, rgb.g, rgb.b);
+        rgb_matrix_set_color(LED_L7, rgb.r, rgb.g, rgb.b);
+        rgb_matrix_set_color(LED_R7, rgb.r, rgb.g, rgb.b);
+    }
+    // caps lock enabled
+    if (IS_LED_ON(host_led, USB_LED_CAPS_LOCK)) {
+        HSV hsv = { HSV_WHITE };
+        hsv.v = rgb_matrix_config.hsv.v;
+        RGB rgb = hsv_to_rgb(hsv);
+        rgb_matrix_set_color(LED_L6, rgb.r, rgb.g, rgb.b);
+        rgb_matrix_set_color(LED_R6, rgb.r, rgb.g, rgb.b);
+        rgb_matrix_set_color(LED_L5, rgb.r, rgb.g, rgb.b);
+        rgb_matrix_set_color(LED_R5, rgb.r, rgb.g, rgb.b);
+        rgb_matrix_set_color(LED_CAPS, rgb.r, rgb.g, rgb.b);
+    }
+    switch (get_highest_layer(layer_state)) {
+        case _GAMING:
+            break;
+        case _NUM:
+            numpad_leds_on();
+            break;
+        case _FN:
+            // highlight fn keys, lower brightness, change color
+            HSV hsv = rgb_matrix_config.hsv;
+            hsv.v = rgb_matrix_config.hsv.v / 4;
+            // change color
+            #define VALUE_OFFSET 128
+            if (hsv.h + VALUE_OFFSET < 0xff) {
+                hsv.h += VALUE_OFFSET;
+            } else {
+                hsv.h = 0xff - hsv.v + VALUE_OFFSET;
+            }
+            RGB rgb = hsv_to_rgb(hsv);
+            for (uint8_t i=0; i<ARRAYSIZE(LED_LIST_FN_KEYS); i++) {
+                rgb_matrix_set_color(LED_LIST_FN_KEYS[i], rgb.r, rgb.g, rgb.b);
+            }
+            break;
+        default:
+            break;
+    }
+}
+#endif // RGB_MATRIX_ENABLE
