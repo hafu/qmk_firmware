@@ -153,12 +153,32 @@ void keyboard_post_init_user(void) {
 #ifdef RGB_MATRIX_ENABLE
     rgb_matrix_current_mode = rgb_matrix_get_mode();
 #endif // RGB_MATRIX_ENABLE
+
+    // this doesn't work
+    if (IS_LAYER_ON(_NUM) != IS_HOST_LED_ON(USB_LED_NUM_LOCK)) {
+    // if (IS_LAYER_ON(_NUM)) {
+        // tap_code(KC_NUMLOCK);
+        tap_code_delay(KC_NUMLOCK, 50);
+    }
 }
+
+// void housekeeping_task_user(void) {
+//     if (IS_LAYER_ON(_NUM) != IS_HOST_LED_ON(USB_LED_NUM_LOCK)) {
+//         tap_code(KC_NUMLOCK);
+//     }
+// }
+
 
 // process keycodes, used for:
 //  - toggle num layer on num lock
 //  - save rgb matrix mode on changing effect
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    // quirky work around to toggle correct state
+    if (IS_LAYER_ON(_NUM) != IS_HOST_LED_ON(USB_LED_NUM_LOCK)) {
+        tap_code(KC_NUMLOCK);
+        // tap_code_delay(KC_NUMLOCK, 50);
+    }
+
     switch (keycode) {
         // toggle numpad layer
         case KC_NLCK:
