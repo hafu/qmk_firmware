@@ -14,7 +14,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define TAPPING_TERM 200
+#define TAPPING_TERM 175
 #define RGB_DISABLE_WHEN_USB_SUSPENDED true
-// #define RGB_MATRIX_FRAMEBUFFER_EFFECTS
-// #define RGB_MATRIX_KEYPRESSES
+#define RGB_MATRIX_FRAMEBUFFER_EFFECTS
+#define RGB_MATRIX_KEYPRESSES
