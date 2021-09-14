@@ -377,9 +377,9 @@ void rgb_matrix_set_color_led_list(const uint8_t* led_array, size_t size, RGB* r
 // rotary encoder
 bool encoder_update_user(uint8_t index, bool clockwise) {
     if (clockwise) {
-      tap_code(KC_VOLU);
+      tap_code(KC_PGDN);
     } else {
-      tap_code(KC_VOLD);
+      tap_code(KC_PGUP);
     }
     return true;
 }
