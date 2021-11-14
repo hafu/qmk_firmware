@@ -54,6 +54,20 @@ enum {
     TD_DEL_SFTDEL
 };
 
+// custom keycode
+enum custom_keycodes {
+    KC_CST_TGL_RTRY_FNC = SAFE_RANGE
+};
+
+// rotary encoder functions
+enum custom_rotary_encoder_functions {
+    RTRY_PG_UP_DN,
+    RTRY_UP_DN,
+    RTRY_VOL_UP_DN
+};
+
+uint8_t cur_rotary_encoder_function = RTRY_PG_UP_DN;
+
 td_state_t cur_dance(qk_tap_dance_state_t *state);
 
 // function definitons
@@ -121,7 +135,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         _______, _______, _______,                            _______,                            _______, _______, _______, _______, _______, _______
     ),
     [_FN] = LAYOUT(
-        _______, _______, _______, KC_SLEP, KC_PWR,  _______, _______, KC_MPRV, KC_MNXT, KC_MPLY, KC_MUTE, KC_VOLD, KC_VOLU, RGB_TOG,          _______,
+        _______, _______, _______, KC_SLEP, KC_PWR,  _______, _______, KC_MPRV, KC_MNXT, KC_MPLY, KC_MUTE, KC_VOLD, KC_VOLU, RGB_TOG,          KC_CST_TGL_RTRY_FNC,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,   RESET,          _______,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, RGB_HUI, RGB_SAI, RGB_SPI,                   KC_HOME,
         _______, _______, _______, _______, _______, TG(_GAMING), _______, _______, _______, _______, RGB_HUD, RGB_SAD, RGB_SPD, _______,      KC_END,
@@ -376,11 +390,77 @@ void rgb_matrix_set_color_led_list(const uint8_t* led_array, size_t size, RGB* r
 #ifdef ENCODER_ENABLE
 // rotary encoder
 bool encoder_update_user(uint8_t index, bool clockwise) {
-    if (clockwise) {
-      tap_code(KC_PGDN);
-    } else {
-      tap_code(KC_PGUP);
+    /*
+    // switch from RTRY_PG_UP_DN -> RTRY_UP_DN when KC_RALT is pressed
+    if ((get_mods() & MOD_BIT(KC_RALT)) == MOD_BIT(KC_RALT) && cur_rotary_encoder_function == RTRY_PG_UP_DN) {
+        cur_rotary_encoder_function = RTRY_UP_DN;
     }
+    // switch from RTRY_UP_DN -> RTRY_PG_UP_DN when KC_RALT is pressed
+    if ((get_mods() & MOD_BIT(KC_RALT)) == MOD_BIT(KC_RALT) && cur_rotary_encoder_function == RTRY_UP_DN) {
+        cur_rotary_encoder_function = RTRY_PG_UP_DN;
+    }*/
+    // switch from RTRY_PG_UP_DN -> RTRY_UP_DN / RTRY_UP_DN -> RTRY_PG_UP_DN when KC_RALT
+    if ((get_mods() & MOD_BIT(KC_RALT)) == MOD_BIT(KC_RALT)) {
+        switch (cur_rotary_encoder_function) {
+            case RTRY_PG_UP_DN:
+                cur_rotary_encoder_function = RTRY_UP_DN;
+                break;
+            case RTRY_UP_DN:
+                cur_rotary_encoder_function = RTRY_PG_UP_DN;
+                break;
+            default:
+                break;
+        }
+    }
+
+    switch (cur_rotary_encoder_function) {
+        case RTRY_UP_DN:
+            if (clockwise) {
+                tap_code(KC_DOWN);
+            } else {
+                tap_code(KC_UP);
+            }
+            break;
+        case RTRY_VOL_UP_DN:
+            if (clockwise) {
+                tap_code(KC_VOLU);
+            } else {
+                tap_code(KC_VOLD);
+            }
+            break;
+        //case RTRY_PG_UP_DN:
+        default:
+            if (clockwise) {
+                tap_code(KC_PGDN);
+            } else {
+                tap_code(KC_PGUP);
+            }
+            break;
+    }
+/*
+    if (cur_rotary_encoder_function == RTRY_PG_UP_DN) {
+        if (clockwise) {
+            // may toggle directly when RALT + rotary event?
+            if (cur_rotary_encoder_function == RTRY_UP_DN || (get_mods() & MOD_BIT(KC_RALT)) == MOD_BIT(KC_RALT)) {
+                tap_code(KC_DOWN);
+            } else {
+                tap_code(KC_PGDN);
+            }
+        } else {
+            if ((get_mods() & MOD_BIT(KC_RALT)) == MOD_BIT(KC_RALT)) {
+                tap_code(KC_UP);
+            } else {
+                tap_code(KC_PGUP);
+            }
+        }
+    } else {
+        if (clockwise) {
+            tap_code(KC_VOLU);
+        } else {
+            tap_code(KC_VOLD);
+        }
+    }
+*/
     return true;
 }
 #endif // ENCODER_ENABLE
@@ -431,6 +511,30 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     }
 
     switch (keycode) {
+        // toggle rotary encoder function
+        case KC_CST_TGL_RTRY_FNC:
+            if(record->event.pressed) {
+                /*
+                switch (cur_rotary_encoder_function) {
+                    case RTRY_PG_UP_DN:
+                        cur_rotary_encoder_function = RTRY_UP_DN;
+                        break;
+                    case RTRY_UP_DN:
+                        cur_rotary_encoder_function = RTRY_VOL_UP_DN;
+                        break;
+                    //case RTRY_VOL_UP_DN:
+                    default:
+                        cur_rotary_encoder_function = RTRY_PG_UP_DN;
+                        break;
+                }
+                */
+                if (cur_rotary_encoder_function == RTRY_PG_UP_DN || cur_rotary_encoder_function == RTRY_UP_DN) {
+                    cur_rotary_encoder_function = RTRY_VOL_UP_DN;
+                } else {
+                    cur_rotary_encoder_function = RTRY_PG_UP_DN;
+                }
+            }
+            return false;   // skip all further processing of this key
         // toggle numpad layer
         case KC_NLCK:
             if (record->event.pressed) {
@@ -507,6 +611,27 @@ void rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
         rgb_matrix_set_color(LED_R5, rgb.r, rgb.g, rgb.b);
         rgb_matrix_set_color(LED_CAPS, rgb.r, rgb.g, rgb.b);
     }
+    // rotary encoder vol up/down
+    if (cur_rotary_encoder_function == RTRY_VOL_UP_DN) {
+        HSV hsv = { HSV_GREEN };
+        hsv.v = rgb_matrix_config.hsv.v;
+        RGB rgb = hsv_to_rgb(hsv);
+        rgb_matrix_set_color(LED_L4, rgb.r, rgb.g, rgb.b);
+        rgb_matrix_set_color(LED_R4, rgb.r, rgb.g, rgb.b);
+        rgb_matrix_set_color(LED_L3, rgb.r, rgb.g, rgb.b);
+        rgb_matrix_set_color(LED_R3, rgb.r, rgb.g, rgb.b);
+    }
+    // rotary encoder up/down
+    if (cur_rotary_encoder_function == RTRY_UP_DN) {
+        HSV hsv = { HSV_CYAN };
+        hsv.v = rgb_matrix_config.hsv.v;
+        RGB rgb = hsv_to_rgb(hsv);
+        rgb_matrix_set_color(LED_L4, rgb.r, rgb.g, rgb.b);
+        rgb_matrix_set_color(LED_R4, rgb.r, rgb.g, rgb.b);
+        rgb_matrix_set_color(LED_L3, rgb.r, rgb.g, rgb.b);
+        rgb_matrix_set_color(LED_R3, rgb.r, rgb.g, rgb.b);
+    }
+
     switch (get_highest_layer(layer_state)) {
         case _GAMING:
             break;
