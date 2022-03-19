@@ -132,7 +132,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         _______, _______, _______, _______, _______, _______, _______, KC_P7,   KC_P8,   KC_P9,   KC_P0,   KC_PSLS, KC_PAST, _______,          _______,
         _______, _______, _______, _______, _______, _______, _______, KC_P4,   KC_P5,   KC_P6,   KC_PPLS, KC_PMNS, KC_PPLS,                   _______,
         _______, _______, _______, _______, _______, _______, _______, KC_P1,   KC_P2,   KC_P3,   KC_PENT, _______, _______, KC_PENT,          _______,
-        _______, _______, _______, _______, _______, _______, _______, _______, KC_P0,   KC_P0,   KC_PDOT, KC_PMNS,          _______, _______, _______,
+        _______, _______, _______, _______, _______, _______, _______, KC_NLCK, KC_P0,   KC_P0,   KC_PDOT, KC_PMNS,          _______, _______, _______,
         _______, _______, _______,                            _______,                            _______, _______, _______, _______, _______, _______
     ),
     [_FN0] = LAYOUT(
@@ -140,7 +140,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,   RESET,          _______,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, RGB_HUI, RGB_SAI, RGB_SPI,                   KC_HOME,
         _______, _______, _______, _______, _______, TG(_GAMING), _______, _______, _______, _______, RGB_HUD, RGB_SAD, RGB_SPD, _______,      KC_END,
-        _______, _______, _______, _______, _______, _______, _______, KC_NLCK, _______, _______, _______, _______,          _______, RGB_VAI, _______,
+        _______, _______, _______, _______, _______, _______, _______, TG(_NUM), _______, _______, _______, _______,          _______, RGB_VAI, _______,
         _______, _______, _______,                            _______,                            _______, _______, _______, RGB_RMOD, RGB_VAD, RGB_MOD
     ),
     [_FN1] = LAYOUT(
@@ -493,31 +493,11 @@ void keyboard_post_init_user(void) {
 #ifdef RGB_MATRIX_ENABLE
     rgb_matrix_current_mode = rgb_matrix_get_mode();
 #endif // RGB_MATRIX_ENABLE
-
-    // this doesn't work
-    if (IS_LAYER_ON(_NUM) != IS_HOST_LED_ON(USB_LED_NUM_LOCK)) {
-    // if (IS_LAYER_ON(_NUM)) {
-        // tap_code(KC_NUMLOCK);
-        tap_code_delay(KC_NUMLOCK, 50);
-    }
 }
 
-// void housekeeping_task_user(void) {
-//     if (IS_LAYER_ON(_NUM) != IS_HOST_LED_ON(USB_LED_NUM_LOCK)) {
-//         tap_code(KC_NUMLOCK);
-//     }
-// }
-
-
 // process keycodes, used for:
-//  - toggle num layer on num lock
 //  - save rgb matrix mode on changing effect
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-    // quirky work around to toggle correct state
-    if (IS_LAYER_ON(_NUM) != IS_HOST_LED_ON(USB_LED_NUM_LOCK)) {
-        tap_code(KC_NUMLOCK);
-        // tap_code_delay(KC_NUMLOCK, 50);
-    }
 
     switch (keycode) {
         // toggle rotary encoder function
@@ -544,16 +524,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 }
             }
             return false;   // skip all further processing of this key
-        // toggle numpad layer
-        case KC_NLCK:
-            if (record->event.pressed) {
-                if (layer_state_is(_NUM)) {
-                    layer_off(_NUM);
-                } else {
-                    layer_on(_NUM);
-                }
-            }
-            return true;
 #ifdef RGB_MATRIX_ENABLE
         // save current rgb mode when switching, to restore on layer change
         case RGB_MOD:
@@ -599,7 +569,7 @@ void rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
     // num lock enabled
     uint8_t host_led = host_keyboard_leds();
     if (IS_LED_ON(host_led, USB_LED_NUM_LOCK)) {
-        numpad_leds_on();
+        // numpad_leds_on();
         // sidebar leds
         HSV hsv = { HSV_MAGENTA };
         hsv.v = rgb_matrix_config.hsv.v;
