@@ -27,6 +27,14 @@ deferred_token mouse_jiggle_token = INVALID_DEFERRED_TOKEN;
 #ifndef MOUSE_JIGGLER_MAX_SEC
 #define MOUSE_JIGGLER_MAX_SEC 60
 #endif
+#ifdef OLED_ENABLE
+deferred_token mouse_jiggle_animation_token = INVALID_DEFERRED_TOKEN;
+// animation index
+uint8_t mouse_jiggle_animation_index = 0;
+#ifndef MOUSE_JIGGLER_ANIMATION_SPEED
+#define MOUSE_JIGGLER_ANIMATION_SPEED 100
+#endif
+#endif  // OLED_ENABLE
 #endif  // defined(DEFERRED_EXEC_ENABLE) && defined(MOUSE_JIGGLER_ENABLE)
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
@@ -190,6 +198,24 @@ void stop_mouse_jiggler(void) {
   cancel_deferred_exec(mouse_jiggle_token);
   mouse_jiggle_token = INVALID_DEFERRED_TOKEN;
 }
+
+#ifdef OLED_ENABLE
+uint32_t mouse_jiggler_animation_callback(uint32_t trigger_time, void *cb_arg) {
+  // set index of animation
+  mouse_jiggle_animation_index = (mouse_jiggle_animation_index >= 3) ? 0 : mouse_jiggle_animation_index+1;
+  return MOUSE_JIGGLER_ANIMATION_SPEED;
+}
+
+void start_mouse_jiggle_animation(void) {
+  mouse_jiggle_animation_token = defer_exec(1, mouse_jiggler_animation_callback, NULL);
+}
+
+void stop_mouse_jiggle_animation(void) {
+  cancel_deferred_exec(mouse_jiggle_animation_token);
+  mouse_jiggle_animation_token = INVALID_DEFERRED_TOKEN;
+}
+#endif  // OLED_ENABLE
+
 #endif  // defined(DEFERRED_EXEC_ENABLE) && defined(MOUSE_JIGGLER_ENABLE)
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
@@ -199,8 +225,14 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 #if defined(DEFERRED_EXEC_ENABLE) && defined(MOUSE_JIGGLER_ENABLE)
         if (mouse_jiggle_token == INVALID_DEFERRED_TOKEN) {
           start_mouse_jiggler();
+          #ifdef OLED_ENABLE
+          start_mouse_jiggle_animation();
+          #endif
         } else {
           stop_mouse_jiggler();
+          #ifdef OLED_ENABLE
+          stop_mouse_jiggle_animation();
+          #endif
         }
 #endif // defined(DEFERRED_EXEC_ENABLE) && defined(MOUSE_JIGGLER_ENABLE)
       }
@@ -217,6 +249,26 @@ oled_rotation_t oled_init_user(oled_rotation_t rotation) {
 
     return rotation;
 }
+
+#if defined(DEFERRED_EXEC_ENABLE) && defined(MOUSE_JIGGLER_ENABLE)
+void oled_render_animation_mouse_jiggle_animation(void) {
+  switch (mouse_jiggle_animation_index)
+  {
+  case 0:
+    oled_write_P(PSTR("|"), false);
+    break;
+  case 1:
+    oled_write_P(PSTR("/"), false);
+    break;
+  case 2:
+    oled_write_P(PSTR("-"), false);
+    break;
+  default:
+    oled_write_P(PSTR("\\"), false);
+    break;
+  }
+}
+#endif  // defined(DEFERRED_EXEC_ENABLE) && defined(MOUSE_JIGGLER_ENABLE)
 
 void oled_render_layer_state(void) {
 
@@ -245,11 +297,14 @@ bool oled_task_user(void) {
   oled_render_layer_state();
 
 #if defined(DEFERRED_EXEC_ENABLE) && defined(MOUSE_JIGGLER_ENABLE)
+  oled_set_cursor(0, oled_max_lines()-1);
   if (mouse_jiggle_token != INVALID_DEFERRED_TOKEN) {
-    oled_write_ln_P(PSTR("Jiggle Jiggle"), false);
+    oled_write_P(PSTR("Jiggle Jiggle "), false);
+    oled_render_animation_mouse_jiggle_animation();
   } else {
-    oled_write_ln_P(PSTR(""), false);
+    oled_write_P(PSTR("               "), false);
   }
+
 #endif  // defined(DEFERRED_EXEC_ENABLE) && defined(MOUSE_JIGGLER_ENABLE)
 
   return false;
