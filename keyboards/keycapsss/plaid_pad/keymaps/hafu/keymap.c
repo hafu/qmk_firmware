@@ -15,6 +15,29 @@ enum combos {
   COMBO4
 };
 
+#ifdef TAP_DANCE_ENABLE
+typedef struct {
+    uint16_t tap;
+    uint16_t hold;
+    uint16_t held;
+} tap_dance_tap_hold_t;
+
+// Tap Dance declarations
+enum {
+    TD_P5_NUM,
+};
+
+// function declarations used in macro
+void tap_dance_tap_hold_reset(qk_tap_dance_state_t *state, void *user_data);
+void tap_dance_tap_hold_finished(qk_tap_dance_state_t *state, void *user_data);
+
+#define ACTION_TAP_DANCE_TAP_HOLD(tap, hold) { .fn = {NULL, tap_dance_tap_hold_finished, tap_dance_tap_hold_reset}, .user_data = (void *)&((tap_dance_tap_hold_t){tap, hold, 0}), }
+
+qk_tap_dance_action_t tap_dance_actions[] = {
+  [TD_P5_NUM] = ACTION_TAP_DANCE_TAP_HOLD(KC_P5, KC_NUM),
+};
+#endif
+
 enum custom_keycodes {
   KC_CST_TGL_MOUSE_JIGGLE = SAFE_RANGE
 };
@@ -51,7 +74,11 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     */
     [_NUMPAD] = LAYOUT_ortho_4x4(
         KC_P7, KC_P8,   KC_P9,    KC_PSLS,
+#ifdef TAP_DANCE_ENABLE
+        KC_P4, TD(TD_P5_NUM),   KC_P6,    KC_PAST,
+#else
         KC_P4, KC_P5,   KC_P6,    KC_PAST,
+#endif
         KC_P1, KC_P2,   KC_P3,    KC_PMNS,
         KC_P0, KC_PDOT, KC_PENT,  KC_PPLS
     ),
@@ -219,6 +246,10 @@ void stop_mouse_jiggle_animation(void) {
 #endif  // defined(DEFERRED_EXEC_ENABLE) && defined(MOUSE_JIGGLER_ENABLE)
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+#ifdef TAP_DANCE_ENABLE
+  qk_tap_dance_action_t *action;
+#endif  // TAP_DANCE_ENABLE
+
   switch (keycode) {
     case KC_CST_TGL_MOUSE_JIGGLE:
       if (record->event.pressed) {
@@ -237,6 +268,15 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 #endif // defined(DEFERRED_EXEC_ENABLE) && defined(MOUSE_JIGGLER_ENABLE)
       }
       return false; // Skip all further processing of this key
+#ifdef TAP_DANCE_ENABLE
+    // handle tap dance: numlock on hold 5
+    case TD(TD_P5_NUM):
+      action = &tap_dance_actions[TD_INDEX(keycode)];
+      if (!record->event.pressed && action->state.count && !action->state.finished) {
+          tap_dance_tap_hold_t *tap_hold = (tap_dance_tap_hold_t *)action->user_data;
+          tap_code16(tap_hold->tap);
+      }
+#endif  // TAP_DANCE_ENABLE
     default:
       return true; // Process all other keycodes normally
   }
@@ -311,3 +351,32 @@ bool oled_task_user(void) {
 }
 
 #endif
+
+#ifdef TAP_DANCE_ENABLE
+void tap_dance_tap_hold_finished(qk_tap_dance_state_t *state, void *user_data) {
+    tap_dance_tap_hold_t *tap_hold = (tap_dance_tap_hold_t *)user_data;
+
+    if (state->pressed) {
+        if (state->count == 1
+#ifndef PERMISSIVE_HOLD
+            && !state->interrupted
+#endif
+        ) {
+            register_code16(tap_hold->hold);
+            tap_hold->held = tap_hold->hold;
+        } else {
+            register_code16(tap_hold->tap);
+            tap_hold->held = tap_hold->tap;
+        }
+    }
+}
+
+void tap_dance_tap_hold_reset(qk_tap_dance_state_t *state, void *user_data) {
+    tap_dance_tap_hold_t *tap_hold = (tap_dance_tap_hold_t *)user_data;
+
+    if (tap_hold->held) {
+        unregister_code16(tap_hold->held);
+        tap_hold->held = 0;
+    }
+}
+#endif  // TAP_DANCE_ENABLE
