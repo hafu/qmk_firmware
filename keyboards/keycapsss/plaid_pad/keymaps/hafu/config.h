@@ -23,3 +23,6 @@
 
 #define OLED_TIMEOUT 600000
 #define OLED_SCROLL_TIMEOUT 60000
+
+// custom defines for mouse jiggler
+#define MOUSE_JIGGLER_ENABLE

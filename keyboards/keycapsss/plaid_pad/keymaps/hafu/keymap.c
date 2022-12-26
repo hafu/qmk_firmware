@@ -15,6 +15,19 @@ enum combos {
   COMBO4
 };
 
+enum custom_keycodes {
+  KC_CST_TGL_MOUSE_JIGGLE = SAFE_RANGE
+};
+#if defined(DEFERRED_EXEC_ENABLE) && defined(MOUSE_JIGGLER_ENABLE)
+deferred_token mouse_jiggle_token = INVALID_DEFERRED_TOKEN;
+// define defaults if not defined
+#ifndef MOUSE_JIGGLER_MIN_SEC
+#define MOUSE_JIGGLER_MIN_SEC 1
+#endif
+#ifndef MOUSE_JIGGLER_MAX_SEC
+#define MOUSE_JIGGLER_MAX_SEC 60
+#endif
+#endif  // defined(DEFERRED_EXEC_ENABLE) && defined(MOUSE_JIGGLER_ENABLE)
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     /* NUMPAD layer
@@ -40,15 +53,16 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     * |------+------+------+------|
     * | MS_L | MS_D | MS_R | WH_D |
     * |------+------+------+------|
-    * |      |  UP  |      |      |
+    * |      |  UP  |      | MS_J |
     * |------+------+------+------|
     * | LEFT | DOWN | RGHT |      |
     * `---------------------------'
+    * - Toggle Mouse Jiggle:  - MS_J
     */
     [_NAVIGATION] = LAYOUT_ortho_4x4(
         KC_BTN1, KC_MS_U, KC_BTN2, KC_WH_U,
         KC_MS_L, KC_MS_D, KC_MS_R, KC_WH_D,
-        XXXXXXX, KC_UP,   XXXXXXX, XXXXXXX,
+        XXXXXXX, KC_UP,   XXXXXXX, KC_CST_TGL_MOUSE_JIGGLE,
         KC_LEFT, KC_DOWN, KC_RGHT, XXXXXXX
     ),
     /* MEDIA layer
@@ -145,6 +159,57 @@ void process_combo_event(uint16_t combo_index, bool pressed) {
   }
 }
 
+#if defined(DEFERRED_EXEC_ENABLE) && defined(MOUSE_JIGGLER_ENABLE)
+uint32_t mouse_jiggler_callback(uint32_t trigger_time, void *cb_arg) {
+  int mouse_direction = rand() % 4; // 0-3
+  int mouse_jiggle_timer_seconds = rand() % MOUSE_JIGGLER_MAX_SEC + MOUSE_JIGGLER_MIN_SEC;
+  switch (mouse_direction)
+  {
+  case 0:
+    tap_code(KC_MS_L);
+    break;
+  case 1:
+    tap_code(KC_MS_U);
+    break;
+  case 2:
+    tap_code(KC_MS_R);
+    break;
+  // can only be 3
+  default:
+    tap_code(KC_MS_D);
+    break;
+  }
+  return (uint32_t)mouse_jiggle_timer_seconds*1000;
+}
+
+void start_mouse_jiggler(void) {
+  mouse_jiggle_token = defer_exec(1, mouse_jiggler_callback, NULL);
+}
+
+void stop_mouse_jiggler(void) {
+  cancel_deferred_exec(mouse_jiggle_token);
+  mouse_jiggle_token = INVALID_DEFERRED_TOKEN;
+}
+#endif  // defined(DEFERRED_EXEC_ENABLE) && defined(MOUSE_JIGGLER_ENABLE)
+
+bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+  switch (keycode) {
+    case KC_CST_TGL_MOUSE_JIGGLE:
+      if (record->event.pressed) {
+#if defined(DEFERRED_EXEC_ENABLE) && defined(MOUSE_JIGGLER_ENABLE)
+        if (mouse_jiggle_token == INVALID_DEFERRED_TOKEN) {
+          start_mouse_jiggler();
+        } else {
+          stop_mouse_jiggler();
+        }
+#endif // defined(DEFERRED_EXEC_ENABLE) && defined(MOUSE_JIGGLER_ENABLE)
+      }
+      return false; // Skip all further processing of this key
+    default:
+      return true; // Process all other keycodes normally
+  }
+}
+
 #ifdef OLED_ENABLE
 
 oled_rotation_t oled_init_user(oled_rotation_t rotation) {
@@ -178,6 +243,14 @@ bool oled_task_user(void) {
   oled_write_P(led_state.caps_lock ? PSTR("C/") : PSTR("//"), false);
   oled_write_P(led_state.scroll_lock ? PSTR("S//") : PSTR("///"), false);
   oled_render_layer_state();
+
+#if defined(DEFERRED_EXEC_ENABLE) && defined(MOUSE_JIGGLER_ENABLE)
+  if (mouse_jiggle_token != INVALID_DEFERRED_TOKEN) {
+    oled_write_ln_P(PSTR("Jiggle Jiggle"), false);
+  } else {
+    oled_write_ln_P(PSTR(""), false);
+  }
+#endif  // defined(DEFERRED_EXEC_ENABLE) && defined(MOUSE_JIGGLER_ENABLE)
 
   return false;
 }
