@@ -70,3 +70,33 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         _______, _______, _______,                   _______,                            _______, _______,          _______, _______, _______
     ),
 };
+
+#ifdef CAPS_WORD_ENABLE
+/**
+ * Keep caps enabled on KC_SLSH, which is `-` in ISO DE layout. Therefore a
+ * `_` is typed.
+ */
+bool caps_word_press_user(uint16_t keycode) {
+    switch (keycode) {
+        // Keycodes that continue Caps Word, with shift applied.
+        case KC_A ... KC_Z:
+        // ANSI (EN) Layout
+        // case KC_MINS:
+        //     add_weak_mods(MOD_BIT(KC_LSFT));  // Apply shift to next key.
+        //     return true;
+        // ISO (DE) Layout
+        case KC_SLSH:
+            add_weak_mods(MOD_BIT(KC_LSFT));  // Apply shift to next key.
+            return true;
+        // Keycodes that continue Caps Word, without shifting.
+        case KC_1 ... KC_0:
+        case KC_BSPC:
+        case KC_DEL:
+        case KC_UNDS:
+            return true;
+
+        default:
+            return false;  // Deactivate Caps Word.
+    }
+}
+#endif
