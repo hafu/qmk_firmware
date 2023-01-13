@@ -58,7 +58,7 @@ static bool STATIC_ALPHAS(effect_params_t* params) {
             rgb_matrix_set_color(i, RGB_WHITE);
         }
     }
-    return led_max < DRIVER_LED_TOTAL;
+    return led_max < RGB_MATRIX_LED_COUNT;
 }
 
 // gaming, colors can be changed via speed, hue and sat
@@ -78,7 +78,7 @@ static bool GAMING(effect_params_t* params) {
     // lower the brightness of other keys
     hsv.v = rgb_matrix_config.hsv.v / 8;
     RGB rgb5 = rgb_matrix_hsv_to_rgb(hsv);
-   
+
     for (uint8_t i = led_min; i < led_max; i++) {
         rgb_matrix_set_color(i, rgb5.r, rgb5.g, rgb5.b);
     }
@@ -87,7 +87,7 @@ static bool GAMING(effect_params_t* params) {
     rgb_matrix_set_color_led_list(LED_INDEX_QE, ARRAYSIZE(LED_INDEX_QE), &rgb3);
     rgb_matrix_set_color_led_list(LED_INDEX_MODS, ARRAYSIZE(LED_INDEX_MODS), &rgb4);
 
-    return led_max < DRIVER_LED_TOTAL;
+    return led_max < RGB_MATRIX_LED_COUNT;
 }
 
 // test pattern for colors
@@ -116,13 +116,13 @@ static bool TEST(effect_params_t* params) {
     rgb_matrix_set_color(19, RGB_MAGENTA);
     rgb_matrix_set_color(24, RGB_PINK);
 
-    return led_max < DRIVER_LED_TOTAL;
+    return led_max < RGB_MATRIX_LED_COUNT;
 }
 
 // gaming with fixed defined colors
 static bool GAMING_FIXED_COLORS(effect_params_t* params) {
     RGB_MATRIX_USE_LIMITS(led_min, led_max);
-    
+
     // get current brightness
     uint8_t brightness = rgb_matrix_config.hsv.v;
 
@@ -130,7 +130,7 @@ static bool GAMING_FIXED_COLORS(effect_params_t* params) {
     if (params->init) {
         rgb_matrix_set_color_all(RGB_OFF);
     }
-    
+
     // color definitions for different keys and adjust brightness to current level
     HSV hsv1 = { HSV_MAGENTA };
     hsv1.v = brightness;
@@ -149,7 +149,7 @@ static bool GAMING_FIXED_COLORS(effect_params_t* params) {
     hsv5.v = brightness / 8;
     RGB rgb5 = rgb_matrix_hsv_to_rgb(hsv5);
 
-    
+
     // set all keys to one color
     for (uint8_t i = led_min; i < led_max; i++) {
         rgb_matrix_set_color(i, rgb5.r, rgb5.g, rgb5.b);
@@ -160,7 +160,7 @@ static bool GAMING_FIXED_COLORS(effect_params_t* params) {
     rgb_matrix_set_color_led_list(LED_INDEX_QE, ARRAYSIZE(LED_INDEX_QE), &rgb3);
     rgb_matrix_set_color_led_list(LED_INDEX_MODS, ARRAYSIZE(LED_INDEX_MODS), &rgb4);
 
-    return led_max < DRIVER_LED_TOTAL;
+    return led_max < RGB_MATRIX_LED_COUNT;
 }
 
 #endif // RGB_MATRIX_CUSTOM_EFFECT_IMPLS
