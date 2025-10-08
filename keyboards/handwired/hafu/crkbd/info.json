@@ -1,0 +1,11 @@
+{
+    "keyboard_name": "handwired/hafu/crkbd",
+    "maintainer": "hafu",
+    "manufacturer": "hafu",
+    "tags": ["ortho", "split", "rp2040", "corne", "crkbd", "handwired"],
+    "usb": {
+        "device_version": "1.0.0",
+        "pid": "0xEFA0",
+        "vid": "0xFEED"
+    }
+}
